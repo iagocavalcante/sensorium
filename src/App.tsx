@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  bridgeConnectionBrief,
+  closeAgentBridge,
+  createAgentBridge,
+  readAgentBridgeEvents,
+  syncAgentBridge,
+  type AgentBridge,
+} from "./lib/bridge";
 import { capturePhysicalReading } from "./lib/sensors";
 import { compareSamples, habitatScore, sensoriumStore, type Sample } from "./lib/store";
 import { registerSensoriumTools } from "./lib/webmcp";
@@ -62,12 +70,60 @@ export default function App() {
   const [webMcpReady, setWebMcpReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
   const [captureError, setCaptureError] = useState("");
+  const [bridge, setBridge] = useState<AgentBridge | null>(null);
+  const [bridgeBusy, setBridgeBusy] = useState(false);
+  const [bridgeError, setBridgeError] = useState("");
+  const [bridgeCopied, setBridgeCopied] = useState(false);
+  const appliedBridgeEvents = useRef(new Set<string>());
   const comparison = useMemo(() => compareSamples(state.samples), [state.samples]);
 
   useEffect(() => {
     registerSensoriumTools().then(setWebMcpReady).catch(() => setWebMcpReady(false));
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    if (!bridge) return;
+    const timeout = window.setTimeout(() => {
+      syncAgentBridge(bridge, state).catch(() => setBridgeError("Evidence sync paused. Reopen the bridge if it expired."));
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [bridge, state]);
+
+  useEffect(() => {
+    if (!bridge) return;
+    let active = true;
+    let cursor = new Date().toISOString();
+    let timeout = 0;
+
+    const poll = async () => {
+      try {
+        const { events } = await readAgentBridgeEvents(bridge, cursor);
+        if (!active) return;
+        for (const event of events) {
+          if (appliedBridgeEvents.current.has(event.id)) continue;
+          appliedBridgeEvents.current.add(event.id);
+          cursor = event.at;
+          if (event.type === "intervention") {
+            if (event.rationale) sensoriumStore.annotate(`Remote rationale: ${event.rationale}`);
+            sensoriumStore.proposeIntervention(event.text);
+          } else {
+            sensoriumStore.annotate(event.text);
+          }
+        }
+        setBridgeError("");
+      } catch {
+        if (active) setBridgeError("The bridge is unavailable or has expired.");
+      }
+      if (active) timeout = window.setTimeout(poll, 2500);
+    };
+
+    timeout = window.setTimeout(poll, 1000);
+    return () => {
+      active = false;
+      window.clearTimeout(timeout);
+    };
+  }, [bridge]);
 
   async function capturePhysical() {
     setCapturing(true);
@@ -93,6 +149,38 @@ export default function App() {
     anchor.download = `sensorium-${state.investigation.id}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function openBridge() {
+    setBridgeBusy(true);
+    setBridgeError("");
+    try {
+      appliedBridgeEvents.current.clear();
+      setBridge(await createAgentBridge(state));
+    } catch (error) {
+      setBridgeError(error instanceof Error ? error.message : "The agent bridge could not be opened.");
+    } finally {
+      setBridgeBusy(false);
+    }
+  }
+
+  async function copyBridge() {
+    if (!bridge) return;
+    try {
+      await navigator.clipboard.writeText(bridgeConnectionBrief(bridge));
+      setBridgeCopied(true);
+      window.setTimeout(() => setBridgeCopied(false), 1800);
+    } catch {
+      setBridgeError("Clipboard access was unavailable. Copy the endpoint and code manually.");
+    }
+  }
+
+  async function closeBridge() {
+    if (!bridge) return;
+    const current = bridge;
+    setBridge(null);
+    setBridgeError("");
+    await closeAgentBridge(current).catch(() => undefined);
   }
 
   return (
@@ -152,7 +240,7 @@ export default function App() {
         <aside className="agent-panel">
           <div className="section-heading inverse">
             <div><span className="section-number">02</span><p>Agent channel</p></div>
-            <span className="phase-label">9 tools</span>
+            <span className="phase-label">9 web · 5 remote</span>
           </div>
           <p className="agent-statement">The agent cannot move through your room. You cannot compare every signal at once. Together, you can.</p>
           <div className="tool-strip" aria-label="Agent tools">
@@ -161,6 +249,30 @@ export default function App() {
           <div className="agent-callout">
             <span className="agent-glyph">✳</span>
             <p>{comparison.ready ? `Strongest signal: ${comparison.best?.label} at ${comparison.best?.score}/100.` : "Ask your browser agent to design the next observation."}</p>
+          </div>
+          <div className={`bridge-panel ${bridge ? "is-open" : ""}`}>
+            <div className="bridge-heading">
+              <span className="bridge-signal" />
+              <p>Remote MCP bridge</p>
+              <small>{bridge ? "live · 1 hour" : "off"}</small>
+            </div>
+            {bridge ? (
+              <div className="bridge-open">
+                <p>Structured evidence is available to an MCP client. Raw media never leaves this page.</p>
+                <div className="bridge-code"><span>Bridge code</span><strong>{bridge.code}</strong></div>
+                <code>{bridge.mcpUrl}</code>
+                <div className="bridge-actions">
+                  <button onClick={copyBridge}>{bridgeCopied ? "Copied connection brief" : "Copy connection brief"}</button>
+                  <button onClick={closeBridge}>Close</button>
+                </div>
+              </div>
+            ) : (
+              <div className="bridge-closed">
+                <p>Open a temporary path for Codex, Claude, or another MCP client to read this evidence and send findings back.</p>
+                <button onClick={openBridge} disabled={bridgeBusy}>{bridgeBusy ? "Opening bridge…" : "Open agent bridge ↗"}</button>
+              </div>
+            )}
+            {bridgeError && <p className="bridge-error" role="alert">{bridgeError}</p>}
           </div>
         </aside>
       </section>
@@ -196,9 +308,9 @@ export default function App() {
       </section>
 
       <footer>
-        <span>Sensorium / field build 0.1</span>
+        <span>Sensorium / field build 0.2</span>
         <p>The mind is distributed. The evidence is shared.</p>
-        <span>Local-first · WebMCP</span>
+        <span>Local-first · WebMCP + MCP</span>
       </footer>
     </main>
   );

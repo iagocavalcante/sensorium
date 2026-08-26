@@ -1,38 +1,18 @@
-export type SamplePhase = "baseline" | "intervention";
+import {
+  compareEnvironmentSamples,
+  habitatScore,
+  type EnvironmentActivity,
+  type EnvironmentInvestigation,
+  type EnvironmentSample,
+  type EnvironmentSnapshot,
+  type SamplePhase,
+} from "../../shared/environment";
 
-export type Sample = {
-  id: string;
-  label: string;
-  capturedAt: string;
-  soundDb: number;
-  brightness: number;
-  steadiness: number;
-  phase: SamplePhase;
-  source: "simulated" | "physical";
-};
-
-export type Activity = {
-  id: string;
-  at: string;
-  actor: "human" | "agent" | "instrument";
-  text: string;
-};
-
-export type Investigation = {
-  id: string;
-  title: string;
-  question: string;
-  status: "active" | "complete";
-  createdAt: string;
-};
-
-export type SensoriumState = {
-  investigation: Investigation;
-  requestedObservation: string;
-  intervention: string;
-  samples: Sample[];
-  activity: Activity[];
-};
+export type Sample = EnvironmentSample;
+export type Activity = EnvironmentActivity;
+export type Investigation = EnvironmentInvestigation;
+export type SensoriumState = EnvironmentSnapshot;
+export type { SamplePhase };
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
 
@@ -168,18 +148,8 @@ export const sensoriumStore = {
   },
 };
 
-export function habitatScore(sample: Sample) {
-  const noiseScore = Math.max(0, Math.min(100, ((75 - sample.soundDb) / 40) * 100));
-  const lightScore = Math.max(0, 100 - Math.abs(sample.brightness - 70) * 1.5);
-  return Math.round(noiseScore * 0.4 + lightScore * 0.35 + sample.steadiness * 0.25);
+export function compareSamples(samples = state.samples) {
+  return compareEnvironmentSamples(samples);
 }
 
-export function compareSamples(samples = state.samples) {
-  if (samples.length < 2) {
-    return { ready: false, message: "Capture at least two samples to compare them." };
-  }
-  const ranked = samples
-    .map((sample) => ({ id: sample.id, label: sample.label, score: habitatScore(sample) }))
-    .sort((a, b) => b.score - a.score);
-  return { ready: true, best: ranked[0], ranked };
-}
+export { habitatScore };

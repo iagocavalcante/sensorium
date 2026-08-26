@@ -105,6 +105,22 @@ h1 em { color: var(--signal); font-weight: 400; }
 .agent-callout p { margin: 0; line-height: 1.5; font-size: .84rem; }
 .agent-glyph { color: var(--forest-light); }
 
+.bridge-panel { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid color-mix(in oklch, var(--paper) 28%, transparent); }
+.bridge-heading { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .6rem; text-transform: uppercase; letter-spacing: .12em; font-size: .58rem; }
+.bridge-heading p { margin: 0; }
+.bridge-heading small { font-size: .54rem; opacity: .62; }
+.bridge-signal { width: 7px; height: 7px; border-radius: 50%; background: color-mix(in oklch, var(--paper) 36%, transparent); }
+.bridge-panel.is-open .bridge-signal { background: var(--forest-light); box-shadow: 0 0 0 4px color-mix(in oklch, var(--forest-light) 13%, transparent); }
+.bridge-closed p, .bridge-open > p { margin: 1rem 0; color: color-mix(in oklch, var(--paper) 72%, var(--forest)); font-size: .72rem; line-height: 1.5; }
+.bridge-closed button, .bridge-actions button { border: 0; border-bottom: 1px solid currentColor; padding: .45rem 0; background: transparent; color: var(--paper); cursor: pointer; font-size: .68rem; }
+.bridge-closed button:hover, .bridge-actions button:hover { color: var(--forest-light); }
+.bridge-code { margin: 1rem 0 .6rem; display: grid; gap: .3rem; }
+.bridge-code span { text-transform: uppercase; letter-spacing: .13em; font-size: .52rem; opacity: .62; }
+.bridge-code strong { font-family: var(--serif); font-size: 1.12rem; font-weight: 500; letter-spacing: .035em; overflow-wrap: anywhere; }
+.bridge-open code { display: block; color: color-mix(in oklch, var(--paper) 70%, var(--forest)); font-family: inherit; font-size: .6rem; overflow-wrap: anywhere; }
+.bridge-actions { margin-top: 1rem; display: flex; justify-content: space-between; gap: 1rem; }
+.bridge-error { margin: .8rem 0 0; color: oklch(88% .1 60); font-size: .66rem; line-height: 1.4; }
+
 .evidence-section { padding: clamp(4rem, 8vw, 8rem) clamp(1.25rem, 5vw, 5rem); display: grid; grid-template-columns: minmax(18rem, .75fr) minmax(0, 1.5fr); gap: clamp(3rem, 7vw, 8rem); }
 .evidence-intro h2, .ledger-title h2 { margin: clamp(2.5rem, 6vw, 5rem) 0 2rem; font-size: clamp(2.35rem, 4.5vw, 5.2rem); line-height: .92; letter-spacing: -.045em; font-weight: 500; }
 .evidence-controls { display: flex; align-items: center; gap: 1.2rem; }

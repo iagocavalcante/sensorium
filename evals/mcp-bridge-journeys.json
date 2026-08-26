@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "endpoint": "/mcp",
+  "journeys": [
+    {
+      "name": "discover the human-authorized bridge",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Explain what Sensorium can access before reading my bridge."
+        }
+      ],
+      "expectedCall": [
+        { "functionName": "inspect_sensorium", "arguments": {} }
+      ],
+      "mustMention": ["structured measurements", "no raw media", "temporary"]
+    },
+    {
+      "name": "compare remote evidence",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Read this Sensorium bridge and rank the sampled places."
+        }
+      ],
+      "expectedCall": [
+        { "functionName": "read_environment" },
+        { "functionName": "compare_places" }
+      ]
+    },
+    {
+      "name": "return a visible intervention",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Based on the bridged evidence, send one safe reversible experiment back to the page."
+        }
+      ],
+      "expectedCall": [
+        { "functionName": "read_environment" },
+        { "functionName": "propose_intervention" }
+      ],
+      "expectedOutcome": "The intervention and its rationale appear in the browser activity ledger."
+    }
+  ]
+}
