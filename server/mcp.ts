@@ -1,6 +1,6 @@
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
-import { compareEnvironmentSamples, goalProfiles } from "../shared/environment.js";
+import { compareEnvironmentSamples, goalProfiles, sampleEvidenceQuality } from "../shared/environment.js";
 import {
   addBridgeEvent,
   compareBridgeSamples,
@@ -37,7 +37,7 @@ const missingExpedition = (expeditionCode: string) => ({
 
 function buildSensoriumServer() {
   const server = new McpServer(
-    { name: "sensorium", version: "0.3.0" },
+    { name: "sensorium", version: "0.4.0" },
     { instructions: "Sensorium coordinates human-authorized environmental fieldwork. Browser stations control sensors and physical action; MCP agents may design missions, compare structured evidence, and return visible findings. Never imply access to raw camera or microphone media." },
   );
 
@@ -55,6 +55,8 @@ function buildSensoriumServer() {
       expeditionLifetimeHours: 6,
       rawMediaAvailable: false,
       collaborationModes: ["single human-authorized bridge", "multi-station expedition"],
+      evidenceProtocol: "Eight-second multi-reading capture with variability, duration, and device-motion quality checks.",
+      calibration: "Browser-derived sound and light are relative signals, not calibrated dB or lux.",
       next: "Read a bridge code, or create an expedition and invite browser stations to join it.",
     }),
   );
@@ -83,6 +85,7 @@ function buildSensoriumServer() {
         samples: bridge.snapshot.samples,
         activity: bridge.snapshot.activity,
         privacy: "Structured measurements only; no audio, video, or precise location is stored.",
+        calibration: "soundDb is a legacy field name containing a relative 0–100 sound signal; brightness is relative camera luminance, not lux.",
       }) : missingBridge(bridgeCode);
     },
   );
@@ -141,6 +144,56 @@ function buildSensoriumServer() {
       expedition: await createExpedition(title, question, profile),
       instructions: "Share the expedition code with participants. Each person enters it under Join an expedition before opening their Sensorium bridge.",
     }),
+  );
+
+  server.registerTool(
+    "validate_sample_quality",
+    {
+      title: "Validate bridged evidence quality",
+      description: "Inspect confidence, duration, reading count, signal variability, and motion validation for one bridged sample. Uses the latest sample when no ID is supplied.",
+      inputSchema: z.object({
+        bridgeCode: bridgeCodeSchema,
+        sampleId: z.string().max(160).optional(),
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ bridgeCode, sampleId }) => {
+      const bridge = await getBridge(bridgeCode);
+      if (!bridge) return missingBridge(bridgeCode);
+      const sample = sampleId
+        ? bridge.snapshot.samples.find((candidate) => candidate.id === sampleId)
+        : bridge.snapshot.samples.at(-1);
+      return sample ? result({
+        sample: { id: sample.id, label: sample.label, source: sample.source },
+        quality: sampleEvidenceQuality(sample),
+        units: "Sound and light are relative browser-derived signals, not calibrated dB or lux.",
+      }) : result({ status: "no_sample", next: "Ask the person to run the eight-second field protocol." });
+    },
+  );
+
+  server.registerTool(
+    "request_bridge_recapture",
+    {
+      title: "Request cleaner bridged evidence",
+      description: "Send a visible eight-second recapture mission to one browser bridge when its evidence is not reliable enough for comparison.",
+      inputSchema: z.object({
+        bridgeCode: bridgeCodeSchema,
+        sampleId: z.string().max(160).optional(),
+        reason: z.string().trim().min(1).max(320),
+      }),
+      annotations: { openWorldHint: false },
+    },
+    async ({ bridgeCode, sampleId, reason }) => {
+      const bridge = await getBridge(bridgeCode);
+      if (!bridge) return missingBridge(bridgeCode);
+      const sample = sampleId
+        ? bridge.snapshot.samples.find((candidate) => candidate.id === sampleId)
+        : bridge.snapshot.samples.at(-1);
+      if (!sample) return result({ delivered: false, reason: "No sample is available to recapture." });
+      const prompt = `Repeat “${sample.label}” with the phone resting in the same position for the full eight-second protocol. ${reason}`;
+      const event = await addBridgeEvent(bridgeCode, { type: "observation_request", text: prompt });
+      return event ? result({ delivered: true, event, sampleId: sample.id, humanActionRequired: true }) : missingBridge(bridgeCode);
+    },
   );
 
   server.registerTool(

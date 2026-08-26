@@ -1,5 +1,10 @@
 import { compareSamples, sensoriumStore } from "./store";
-import { compareEnvironmentSamples, goalProfiles, type GoalProfile } from "../../shared/environment";
+import {
+  compareEnvironmentSamples,
+  goalProfiles,
+  sampleEvidenceQuality,
+  type GoalProfile,
+} from "../../shared/environment";
 
 const objectSchema = (properties: Record<string, unknown>, required: string[] = []) => ({
   type: "object",
@@ -26,6 +31,8 @@ export async function registerSensoriumTools() {
         cameraAndMicrophone: Boolean(navigator.mediaDevices?.getUserMedia),
         geolocation: "geolocation" in navigator,
         bluetooth: "bluetooth" in navigator,
+        deviceMotion: "DeviceMotionEvent" in window,
+        screenWakeLock: "wakeLock" in navigator,
         note: "Camera, microphone, location, and Bluetooth permission must be granted by the person in the page.",
       }),
     },
@@ -88,7 +95,7 @@ export async function registerSensoriumTools() {
       ),
       execute: ({ label, mode, phase }) => {
         if (mode === "physical") {
-          const prompt = `Capture the physical reading labeled “${String(label)}” using the orange button.`;
+          const prompt = `Run the eight-second physical protocol labeled “${String(label)}” using the orange button. Rest the phone in one position until capture completes.`;
           sensoriumStore.requestObservation(prompt);
           return { status: "needs_user_action", prompt, reason: "Browser sensor permission requires a person in the page." };
         }
@@ -102,6 +109,35 @@ export async function registerSensoriumTools() {
       inputSchema: objectSchema({}),
       annotations: { readOnlyHint: true, untrustedContentHint: true },
       execute: () => compareSamples(),
+    },
+    {
+      name: "validate_sample_quality",
+      title: "Validate evidence quality",
+      description: "Inspect the confidence, duration, reading count, variability, and motion validation for one visible sample. Uses the latest sample when no ID is supplied.",
+      inputSchema: objectSchema({ sampleId: stringField("Optional sample ID. Omit to validate the latest reading.") }),
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: ({ sampleId }) => {
+        const samples = sensoriumStore.getSnapshot().samples;
+        const sample = sampleId
+          ? samples.find((candidate) => candidate.id === String(sampleId))
+          : samples.at(-1);
+        return sample
+          ? { sample: { id: sample.id, label: sample.label, source: sample.source }, quality: sampleEvidenceQuality(sample), units: "Sound and light are relative browser-derived signals, not calibrated dB or lux." }
+          : { status: "no_sample", next: "Ask the person to run the eight-second field protocol." };
+      },
+    },
+    {
+      name: "request_recapture",
+      title: "Request cleaner evidence",
+      description: "Place a visible recapture mission on the page when evidence quality is too low for a confident comparison.",
+      inputSchema: objectSchema({
+        sampleId: stringField("Optional sample ID. Omit to recapture the latest reading."),
+        reason: stringField("Concise evidence-quality reason for repeating the observation."),
+      }, ["reason"]),
+      execute: ({ sampleId, reason }) => {
+        const request = sensoriumStore.requestRecapture(sampleId ? String(sampleId) : undefined, String(reason));
+        return request ? { displayed: true, ...request, humanActionRequired: true } : { displayed: false, reason: "No sample is available to recapture." };
+      },
     },
     {
       name: "annotate_evidence",

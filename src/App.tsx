@@ -7,11 +7,41 @@ import {
   syncAgentBridge,
   type AgentBridge,
 } from "./lib/bridge";
-import { capturePhysicalReading } from "./lib/sensors";
+import { sampleEvidenceQuality } from "../shared/environment";
+import { capturePhysicalReading, type CaptureProgress } from "./lib/sensors";
 import { compareSamples, habitatScore, sensoriumStore, type Sample } from "./lib/store";
 import { registerSensoriumTools } from "./lib/webmcp";
 
 const formatTime = (iso: string) => new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+
+function QualityReadout({ sample }: { sample: Sample }) {
+  const quality = sampleEvidenceQuality(sample);
+  const headline = sample.source === "simulated"
+    ? "Demonstration only"
+    : quality.grade === "high"
+      ? "Strong evidence"
+      : quality.grade === "usable"
+        ? "Usable evidence"
+        : "Recapture advised";
+  return (
+    <div className={`quality-readout quality-${quality.grade}`}>
+      <div className="quality-heading">
+        <span>Evidence confidence</span>
+        <strong>{quality.confidence}%</strong>
+      </div>
+      <div className="quality-rule" style={{ "--confidence": `${quality.confidence}%` } as React.CSSProperties}><i /></div>
+      <p><b>{headline}.</b> {quality.issues[0] ?? "The timed reading was stable and complete."}</p>
+      <div className="quality-method">
+        <span>{(quality.durationMs / 1000).toFixed(1)} sec</span>
+        <span>{quality.readingCount} readings</span>
+        <span>{quality.motionAvailable ? "motion checked" : "motion estimated"}</span>
+      </div>
+      {quality.recaptureRecommended && (
+        <button onClick={() => sensoriumStore.requestRecapture(sample.id, quality.issues[0])}>Request a cleaner recapture ↗</button>
+      )}
+    </div>
+  );
+}
 
 function Instrument({ samples }: { samples: Sample[] }) {
   const latest = samples.at(-1);
@@ -26,10 +56,11 @@ function Instrument({ samples }: { samples: Sample[] }) {
         </div>
       </div>
       <div className="instrument-caption">
-        <span>sound <b>{latest ? `${latest.soundDb} dB` : "—"}</b></span>
-        <span>light <b>{latest ? `${latest.brightness}%` : "—"}</b></span>
+        <span>sound <b>{latest ? `${latest.soundDb}/100` : "—"}</b></span>
+        <span>light <b>{latest ? `${latest.brightness}% rel.` : "—"}</b></span>
         <span>steady <b>{latest ? `${latest.steadiness}%` : "—"}</b></span>
       </div>
+      {latest && <QualityReadout sample={latest} />}
     </div>
   );
 }
@@ -69,6 +100,7 @@ export default function App() {
   const state = useSyncExternalStore(sensoriumStore.subscribe, sensoriumStore.getSnapshot);
   const [webMcpReady, setWebMcpReady] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  const [captureProgress, setCaptureProgress] = useState<CaptureProgress | null>(null);
   const [captureError, setCaptureError] = useState("");
   const [bridge, setBridge] = useState<AgentBridge | null>(null);
   const [bridgeBusy, setBridgeBusy] = useState(false);
@@ -138,12 +170,14 @@ export default function App() {
       const reading = await capturePhysicalReading(
         state.intervention ? "Verification reading" : `Observation ${state.samples.length + 1}`,
         state.intervention ? "intervention" : "baseline",
+        setCaptureProgress,
       );
       sensoriumStore.addSample(reading);
     } catch (error) {
       setCaptureError(error instanceof Error ? error.message : "The reading could not be captured.");
     } finally {
       setCapturing(false);
+      setCaptureProgress(null);
     }
   }
 
@@ -237,10 +271,22 @@ export default function App() {
               <div className="actions">
                 <button className="primary-action" onClick={capturePhysical} disabled={capturing}>
                   <span className="pulse-dot" />
-                  {capturing ? "Listening & looking…" : "Capture physical reading"}
+                  {captureProgress?.stage === "sampling"
+                    ? `Sampling · ${captureProgress.remainingSeconds}s`
+                    : captureProgress?.stage === "settling"
+                      ? "Stabilizing instruments…"
+                      : capturing
+                        ? "Awaiting permission…"
+                        : "Run 8-second field protocol"}
                 </button>
                 <button className="secondary-action" onClick={() => sensoriumStore.addSimulatedSample(`Sample ${state.samples.length + 1}`, state.intervention ? "intervention" : "baseline")}>Simulate</button>
               </div>
+              {capturing && (
+                <div className="capture-progress" role="status" aria-live="polite">
+                  <div style={{ "--progress": `${Math.round((captureProgress?.progress ?? 0) * 100)}%` } as React.CSSProperties}><i /></div>
+                  <span>{captureProgress?.readingCount ?? 0} paired readings · keep the phone still</span>
+                </div>
+              )}
               {captureError && <p className="capture-error" role="alert">{captureError}</p>}
               <p className="permission-note">Camera and microphone stay on-device and only activate after you press capture.</p>
             </div>
@@ -251,7 +297,7 @@ export default function App() {
         <aside className="agent-panel">
           <div className="section-heading inverse">
             <div><span className="section-number">02</span><p>Agent channel</p></div>
-            <span className="phase-label">11 web · 12 remote</span>
+            <span className="phase-label">13 web · 14 remote</span>
           </div>
           <p className="agent-statement">The agent cannot move through your room. You cannot compare every signal at once. Together, you can.</p>
           <div className="tool-strip" aria-label="Agent tools">
@@ -259,7 +305,11 @@ export default function App() {
           </div>
           <div className="agent-callout">
             <span className="agent-glyph">✳</span>
-            <p>{comparison.ready ? `Strongest signal: ${comparison.best?.label} at ${comparison.best?.score}/100.` : "Ask your browser agent to design the next observation."}</p>
+            <p>{comparison.ready
+              ? comparison.decisionReady
+                ? `Strongest signal: ${comparison.best?.label} at ${comparison.best?.score}/100 with quality checks passed.`
+                : `${comparison.caution} Ask the agent for a controlled repeat.`
+              : "Ask your browser agent to design the next observation."}</p>
           </div>
           <div className={`bridge-panel ${bridge ? "is-open" : ""}`}>
             <div className="bridge-heading">
@@ -342,7 +392,7 @@ export default function App() {
       </section>
 
       <footer>
-        <span>Sensorium / field build 0.3</span>
+        <span>Sensorium / field build 0.4</span>
         <p>The mind is distributed. The evidence is shared.</p>
         <span>Local-first · WebMCP + MCP</span>
       </footer>

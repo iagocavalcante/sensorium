@@ -1,4 +1,5 @@
 import {
+  assessEvidenceQuality,
   compareEnvironmentSamples,
   habitatScore,
   type EnvironmentActivity,
@@ -15,6 +16,15 @@ export type SensoriumState = EnvironmentSnapshot;
 export type { SamplePhase };
 
 const makeId = (prefix: string) => `${prefix}-${crypto.randomUUID()}`;
+const simulatedQuality = (steadiness: number) => assessEvidenceQuality({
+  source: "simulated",
+  durationMs: 8_000,
+  readingCount: 32,
+  soundSpread: 2,
+  lightSpread: 2,
+  steadiness,
+  motionAvailable: true,
+});
 
 const initialState: SensoriumState = {
   investigation: {
@@ -92,7 +102,7 @@ export const sensoriumStore = {
       samples: [...state.samples, complete],
       activity: [
         ...state.activity,
-        activity("human", `Captured ${sample.label}: ${sample.soundDb} dB, ${sample.brightness}% light.`),
+        activity("human", `Captured ${sample.label}: ${sample.soundDb}/100 relative sound, ${sample.brightness}% relative light${sample.quality ? `, ${sample.quality.confidence}% confidence` : ""}.`),
       ],
     });
     return complete;
@@ -107,7 +117,24 @@ export const sensoriumStore = {
     const adjusted = phase === "intervention"
       ? { soundDb: 39, brightness: 72, steadiness: 91 }
       : baseline;
-    return this.addSample({ label, phase, source: "simulated", ...adjusted });
+    return this.addSample({
+      label,
+      phase,
+      source: "simulated",
+      ...adjusted,
+      quality: simulatedQuality(adjusted.steadiness),
+    });
+  },
+  requestRecapture(sampleId?: string, reason?: string) {
+    const sample = sampleId ? state.samples.find((candidate) => candidate.id === sampleId) : state.samples.at(-1);
+    if (!sample) return undefined;
+    const prompt = `Repeat “${sample.label}” with the phone resting in the same position for the full eight-second protocol.${reason ? ` ${reason}` : ""}`;
+    publish({
+      ...state,
+      requestedObservation: prompt,
+      activity: [...state.activity, activity("agent", `Requested recapture of ${sample.label}: ${reason || "improve evidence confidence"}.`)],
+    });
+    return { sampleId: sample.id, prompt };
   },
   annotate(text: string) {
     publish({ ...state, activity: [...state.activity, activity("agent", text)] });
@@ -127,13 +154,13 @@ export const sensoriumStore = {
       requestedObservation: "Move the lamp closer, then capture a verification reading.",
       intervention: "Move the task lamp closer and close the window during the focus block.",
       samples: [
-        { id: "sample-desk", label: "Desk", capturedAt: now, soundDb: 58, brightness: 34, steadiness: 71, phase: "baseline", source: "simulated" },
-        { id: "sample-window", label: "Window", capturedAt: now, soundDb: 42, brightness: 78, steadiness: 86, phase: "baseline", source: "simulated" },
-        { id: "sample-after", label: "Desk after change", capturedAt: now, soundDb: 39, brightness: 72, steadiness: 91, phase: "intervention", source: "simulated" },
+        { id: "sample-desk", label: "Desk", capturedAt: now, soundDb: 58, brightness: 34, steadiness: 71, phase: "baseline", source: "simulated", quality: simulatedQuality(71) },
+        { id: "sample-window", label: "Window", capturedAt: now, soundDb: 42, brightness: 78, steadiness: 86, phase: "baseline", source: "simulated", quality: simulatedQuality(86) },
+        { id: "sample-after", label: "Desk after change", capturedAt: now, soundDb: 39, brightness: 72, steadiness: 91, phase: "intervention", source: "simulated", quality: simulatedQuality(91) },
       ],
       activity: [
         activity("human", "Captured baseline readings at the desk and window."),
-        activity("agent", "The window is 16 dB quieter and has more than twice the usable light."),
+        activity("agent", "The window is 16 relative-sound points quieter and has more than twice the usable light."),
         activity("agent", "Proposed a lamp and window intervention for the desk."),
         activity("instrument", "Verification improved the habitat score from 51 to 93."),
       ],

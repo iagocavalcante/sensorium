@@ -29,7 +29,7 @@ const contentTypes: Record<string, string> = {
 
 function setSecurityHeaders(res: ServerResponse) {
   res.setHeader("Origin-Agent-Cluster", "?1");
-  res.setHeader("Permissions-Policy", "tools=(self), camera=(self), microphone=(self), geolocation=(self), bluetooth=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self), ambient-light-sensor=(self)");
+  res.setHeader("Permissions-Policy", "tools=(self), camera=(self), microphone=(self), geolocation=(self), bluetooth=(self), accelerometer=(self), gyroscope=(self), magnetometer=(self), ambient-light-sensor=(self), screen-wake-lock=(self)");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("X-Content-Type-Options", "nosniff");
 }

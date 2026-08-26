@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   compareEnvironmentSamples,
   goalProfiles,
+  sampleEvidenceQuality,
   scoreEnvironmentSample,
   type EnvironmentSnapshot,
   type GoalProfile,
@@ -312,14 +313,31 @@ export async function compareExpeditionStations(expeditionCode: string, requeste
   const stations = await listExpeditionStations(expeditionCode);
   const ranked = (stations ?? [])
     .filter((station) => station.latestSample)
-    .map((station) => ({
-      stationCode: station.code,
-      stationLabel: station.label,
-      sample: station.latestSample!,
-      score: scoreEnvironmentSample(station.latestSample!, profile),
-    }))
+    .map((station) => {
+      const sample = station.latestSample!;
+      const quality = sampleEvidenceQuality(sample);
+      return {
+        stationCode: station.code,
+        stationLabel: station.label,
+        sample,
+        score: scoreEnvironmentSample(sample, profile),
+        confidence: quality.confidence,
+        qualityGrade: quality.grade,
+        recaptureRecommended: quality.recaptureRecommended,
+      };
+    })
     .sort((a, b) => b.score - a.score);
-  return { expedition, profile, goal: goalProfiles[profile], ready: ranked.length >= 2, ranked, best: ranked[0] };
+  const needsRecapture = ranked.filter((station) => station.recaptureRecommended);
+  return {
+    expedition,
+    profile,
+    goal: goalProfiles[profile],
+    ready: ranked.length >= 2 && needsRecapture.length === 0,
+    enoughStations: ranked.length >= 2,
+    caution: needsRecapture.length ? `${needsRecapture.length} station${needsRecapture.length === 1 ? " needs" : "s need"} cleaner evidence before a confident comparison.` : undefined,
+    ranked,
+    best: ranked[0],
+  };
 }
 
 export async function requestExpeditionObservation(expeditionCode: string, prompt: string, stationCode?: string) {

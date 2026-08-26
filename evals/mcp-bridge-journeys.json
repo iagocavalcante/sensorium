@@ -70,6 +70,21 @@
         { "functionName": "compare_stations" }
       ],
       "expectedOutcome": "Every joined browser shows the same human-action mission and the coordinator ranks current station readings."
+    },
+    {
+      "name": "challenge weak evidence before deciding",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Check whether the latest bridged observation is reliable enough to compare. If not, ask the person for a cleaner repeat without activating their sensors."
+        }
+      ],
+      "expectedCall": [
+        { "functionName": "validate_sample_quality" },
+        { "functionName": "request_bridge_recapture" }
+      ],
+      "mustMention": ["confidence", "relative", "human action"],
+      "expectedOutcome": "A quality-specific eight-second recapture mission appears in the browser mission card and shared ledger."
     }
   ]
 }

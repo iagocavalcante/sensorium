@@ -1,6 +1,17 @@
 import * as z from "zod/v4";
 
 const shortText = z.string().trim().min(1).max(240);
+const evidenceQualitySchema = z.object({
+  confidence: z.number().finite().min(0).max(100),
+  grade: z.enum(["high", "usable", "low"]),
+  durationMs: z.number().finite().min(0).max(120_000),
+  readingCount: z.number().int().min(0).max(10_000),
+  soundSpread: z.number().finite().min(0).max(320),
+  lightSpread: z.number().finite().min(0).max(100),
+  motionAvailable: z.boolean(),
+  issues: z.array(z.string().max(300)).max(12),
+  recaptureRecommended: z.boolean(),
+});
 
 export const environmentSnapshotSchema = z.object({
   investigation: z.object({
@@ -21,6 +32,7 @@ export const environmentSnapshotSchema = z.object({
     steadiness: z.number().finite().min(0).max(100),
     phase: z.enum(["baseline", "intervention"]),
     source: z.enum(["simulated", "physical"]),
+    quality: evidenceQualitySchema.optional(),
   })).max(100),
   activity: z.array(z.object({
     id: z.string().max(160),

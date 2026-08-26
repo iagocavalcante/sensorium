@@ -85,6 +85,10 @@ h1 em { color: var(--signal); font-weight: 400; }
 .secondary-action { border: 0; border-bottom: 1px solid currentColor; background: transparent; padding: .55rem 0; cursor: pointer; }
 .permission-note, .capture-error { max-width: 32rem; margin: 1.1rem 0 0; color: var(--ink-soft); font-size: .74rem; line-height: 1.5; }
 .capture-error { color: var(--signal); }
+.capture-progress { max-width: 32rem; margin-top: 1.15rem; display: grid; gap: .55rem; }
+.capture-progress > div { height: 3px; background: var(--paper-deep); overflow: hidden; }
+.capture-progress i { display: block; width: var(--progress); height: 100%; background: var(--signal); transition: width .24s linear; }
+.capture-progress span { color: var(--ink-soft); text-transform: uppercase; letter-spacing: .1em; font-size: .57rem; }
 
 .instrument { display: grid; justify-items: center; gap: 2rem; }
 .instrument-rings { width: min(29vw, 350px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: conic-gradient(var(--signal) var(--score), var(--paper-deep) 0); position: relative; }
@@ -97,6 +101,18 @@ h1 em { color: var(--signal); font-weight: 400; }
 .instrument-caption { display: flex; gap: 1.4rem; text-transform: uppercase; letter-spacing: .1em; font-size: .57rem; }
 .instrument-caption span { display: grid; gap: .2rem; }
 .instrument-caption b { font-size: .72rem; }
+.quality-readout { width: min(100%, 25rem); padding: 1rem 0 .2rem; border-top: 1px solid var(--rule); text-align: left; }
+.quality-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; text-transform: uppercase; letter-spacing: .12em; font-size: .56rem; }
+.quality-heading strong { color: var(--forest); font-family: var(--serif); font-size: 1.45rem; font-weight: 500; letter-spacing: 0; }
+.quality-low .quality-heading strong { color: var(--signal); }
+.quality-rule { height: 2px; margin: .55rem 0 .8rem; background: var(--paper-deep); }
+.quality-rule i { display: block; width: var(--confidence); height: 100%; background: var(--forest); }
+.quality-low .quality-rule i { background: var(--signal); }
+.quality-readout p { margin: 0; color: var(--ink-soft); font-size: .68rem; line-height: 1.45; }
+.quality-readout p b { color: var(--ink); font-weight: 650; }
+.quality-method { display: flex; flex-wrap: wrap; gap: .45rem 1rem; margin-top: .75rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .08em; font-size: .5rem; }
+.quality-readout button { margin-top: .8rem; padding: .35rem 0; border: 0; border-bottom: 1px solid currentColor; background: transparent; color: var(--signal); cursor: pointer; font-size: .64rem; }
+.quality-readout button:hover { color: var(--ink); }
 
 .agent-statement { margin: clamp(3rem, 7vw, 6rem) 0; font-family: var(--serif); font-size: clamp(1.7rem, 3vw, 3rem); line-height: 1.06; }
 .tool-strip { margin-top: auto; display: flex; flex-wrap: wrap; gap: .4rem; }
@@ -188,6 +204,7 @@ footer span:last-child { justify-self: end; }
   .mission-panel { padding-left: 1rem; padding-right: 1rem; }
   .mission-prompt { font-size: 2.6rem; }
   .instrument-caption { gap: .8rem; }
+  .quality-readout { width: 100%; }
   .evidence-section { padding-left: 1rem; padding-right: 1rem; }
   .plot { min-height: 330px; }
   .plot-bars { gap: .45rem; padding: 0; }

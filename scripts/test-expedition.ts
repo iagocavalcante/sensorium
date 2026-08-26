@@ -1,4 +1,5 @@
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import assert from "node:assert/strict";
 
 const mcpUrl = process.argv[2] ?? "http://127.0.0.1:8787/mcp";
 const apiOrigin = new URL(mcpUrl).origin;
@@ -56,6 +57,17 @@ const stationB = await openStation(expeditionCode, "Home desk", makeSnapshot("ho
 
 const stations = await client.callTool({ name: "list_field_stations", arguments: { expeditionCode } });
 const comparison = await client.callTool({ name: "compare_stations", arguments: { expeditionCode } });
+const quality = await client.callTool({
+  name: "validate_sample_quality",
+  arguments: { bridgeCode: stationB.code },
+});
+const recapture = await client.callTool({
+  name: "request_bridge_recapture",
+  arguments: {
+    bridgeCode: stationB.code,
+    reason: "Use the complete timed protocol so the comparison includes multiple readings.",
+  },
+});
 const initialUpdate = await client.callTool({ name: "await_expedition_update", arguments: { expeditionCode, timeoutSeconds: 2 } });
 const cursor = (initialUpdate.structuredContent as { cursor: string }).cursor;
 
@@ -89,6 +101,13 @@ const eventsResponse = await fetch(`${apiOrigin}/api/bridges/${stationB.code}/ev
 });
 const stationEvents = await eventsResponse.json();
 
+assert.equal((comparison.structuredContent as { ready: boolean }).ready, true);
+assert.equal((quality.structuredContent as { quality: { confidence: number } }).quality.confidence, 96);
+assert.equal((recapture.structuredContent as { delivered: boolean }).delivered, true);
+assert.equal((liveUpdate.structuredContent as { timedOut: boolean }).timedOut, false);
+assert.equal((mission.structuredContent as { requested: number }).requested, 2);
+assert.equal((stationEvents as { events: unknown[] }).events.length, 2);
+
 for (const station of [stationA, stationB]) {
   await fetch(`${apiOrigin}/api/bridges/${station.code}`, {
     method: "DELETE",
@@ -102,6 +121,8 @@ console.log(JSON.stringify({
   expeditionCode,
   stations: stations.structuredContent,
   comparison: comparison.structuredContent,
+  quality: quality.structuredContent,
+  recapture: recapture.structuredContent,
   liveUpdate: liveUpdate.structuredContent,
   mission: mission.structuredContent,
   stationEvents,

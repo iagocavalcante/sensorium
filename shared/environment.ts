@@ -1,5 +1,19 @@
 export type SamplePhase = "baseline" | "intervention";
 
+export type EvidenceQualityGrade = "high" | "usable" | "low";
+
+export type EvidenceQuality = {
+  confidence: number;
+  grade: EvidenceQualityGrade;
+  durationMs: number;
+  readingCount: number;
+  soundSpread: number;
+  lightSpread: number;
+  motionAvailable: boolean;
+  issues: string[];
+  recaptureRecommended: boolean;
+};
+
 export type EnvironmentSample = {
   id: string;
   label: string;
@@ -9,6 +23,7 @@ export type EnvironmentSample = {
   steadiness: number;
   phase: SamplePhase;
   source: "simulated" | "physical";
+  quality?: EvidenceQuality;
 };
 
 export type EnvironmentActivity = {
@@ -69,6 +84,106 @@ export const goalProfiles = {
 
 export type GoalProfile = keyof typeof goalProfiles;
 
+export function assessEvidenceQuality(input: {
+  source: EnvironmentSample["source"];
+  durationMs: number;
+  readingCount: number;
+  soundSpread: number;
+  lightSpread: number;
+  steadiness: number;
+  motionAvailable: boolean;
+}): EvidenceQuality {
+  if (input.source === "simulated") {
+    return {
+      confidence: 96,
+      grade: "high",
+      durationMs: input.durationMs,
+      readingCount: input.readingCount,
+      soundSpread: input.soundSpread,
+      lightSpread: input.lightSpread,
+      motionAvailable: true,
+      issues: ["Synthetic demonstration data; not a physical observation."],
+      recaptureRecommended: false,
+    };
+  }
+
+  let confidence = 100;
+  const issues: string[] = [];
+  if (input.durationMs < 7_000) {
+    confidence -= 18;
+    issues.push("Observation was shorter than the eight-second field protocol.");
+  }
+  if (input.readingCount < 20) {
+    confidence -= 15;
+    issues.push("Too few readings were available for a stable median.");
+  }
+  if (input.soundSpread > 20) {
+    confidence -= 14;
+    issues.push("Relative sound changed substantially during capture.");
+  } else if (input.soundSpread > 10) {
+    confidence -= 6;
+    issues.push("Relative sound varied during capture.");
+  }
+  if (input.lightSpread > 25) {
+    confidence -= 14;
+    issues.push("Lighting changed substantially during capture.");
+  } else if (input.lightSpread > 12) {
+    confidence -= 6;
+    issues.push("Lighting varied during capture.");
+  }
+  if (input.steadiness < 60) {
+    confidence -= 25;
+    issues.push("The device moved too much for a comparable reading.");
+  } else if (input.steadiness < 78) {
+    confidence -= 12;
+    issues.push("Some device movement may reduce comparability.");
+  }
+  if (!input.motionAvailable) {
+    confidence -= 8;
+    issues.push("Device-motion validation was unavailable; steadiness was estimated.");
+  }
+
+  confidence = Math.max(0, Math.min(100, Math.round(confidence)));
+  const grade: EvidenceQualityGrade = confidence >= 85 ? "high" : confidence >= 65 ? "usable" : "low";
+  return {
+    confidence,
+    grade,
+    durationMs: input.durationMs,
+    readingCount: input.readingCount,
+    soundSpread: Math.round(input.soundSpread),
+    lightSpread: Math.round(input.lightSpread),
+    motionAvailable: input.motionAvailable,
+    issues,
+    recaptureRecommended: confidence < 65,
+  };
+}
+
+export function sampleEvidenceQuality(sample: EnvironmentSample): EvidenceQuality {
+  if (sample.quality) return sample.quality;
+  if (sample.source === "simulated") {
+    return assessEvidenceQuality({
+      source: "simulated",
+      durationMs: 8_000,
+      readingCount: 32,
+      soundSpread: 2,
+      lightSpread: 2,
+      steadiness: sample.steadiness,
+      motionAvailable: true,
+    });
+  }
+  return {
+    confidence: 60,
+    grade: "low",
+    durationMs: 0,
+    readingCount: 1,
+    soundSpread: 0,
+    lightSpread: 0,
+    motionAvailable: false,
+    issues: ["Legacy single-point reading; recapture with the timed protocol for stronger evidence."],
+    recaptureRecommended: true,
+  };
+}
+
 export function scoreEnvironmentSample(
   sample: Pick<EnvironmentSample, "soundDb" | "brightness" | "steadiness">,
   profile: GoalProfile = "focus",
@@ -93,16 +208,31 @@ export function compareEnvironmentSamples(samples: EnvironmentSample[], profile:
   }
 
   const ranked = samples
-    .map((sample) => ({
-      id: sample.id,
-      label: sample.label,
-      phase: sample.phase,
-      score: scoreEnvironmentSample(sample, profile),
-      soundDb: sample.soundDb,
-      brightness: sample.brightness,
-      steadiness: sample.steadiness,
-    }))
+    .map((sample) => {
+      const quality = sampleEvidenceQuality(sample);
+      return {
+        id: sample.id,
+        label: sample.label,
+        phase: sample.phase,
+        score: scoreEnvironmentSample(sample, profile),
+        soundDb: sample.soundDb,
+        brightness: sample.brightness,
+        steadiness: sample.steadiness,
+        confidence: quality.confidence,
+        qualityGrade: quality.grade,
+        recaptureRecommended: quality.recaptureRecommended,
+      };
+    })
     .sort((a, b) => b.score - a.score);
 
-  return { ready: true as const, profile, goal: goalProfiles[profile], best: ranked[0], ranked };
+  const needsRecapture = ranked.filter((sample) => sample.recaptureRecommended);
+  return {
+    ready: true as const,
+    decisionReady: needsRecapture.length === 0,
+    caution: needsRecapture.length ? `${needsRecapture.length} sample${needsRecapture.length === 1 ? " needs" : "s need"} recapture before a confident decision.` : undefined,
+    profile,
+    goal: goalProfiles[profile],
+    best: ranked[0],
+    ranked,
+  };
 }
