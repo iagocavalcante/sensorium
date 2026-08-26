@@ -1,4 +1,5 @@
 import { compareSamples, sensoriumStore } from "./store";
+import { compareEnvironmentSamples, goalProfiles, type GoalProfile } from "../../shared/environment";
 
 const objectSchema = (properties: Record<string, unknown>, required: string[] = []) => ({
   type: "object",
@@ -37,6 +38,31 @@ export async function registerSensoriumTools() {
         ["title", "question"],
       ),
       execute: ({ title, question }) => sensoriumStore.startInvestigation(String(title), String(question)),
+    },
+    {
+      name: "list_goal_profiles",
+      title: "List environmental goals",
+      description: "List the focus, sleep, reading, video-call, and recording profiles available for scoring the same evidence.",
+      inputSchema: objectSchema({}),
+      annotations: { readOnlyHint: true },
+      execute: () => ({ profiles: goalProfiles }),
+    },
+    {
+      name: "score_samples_for_goal",
+      title: "Score evidence for goal",
+      description: "Re-score the visible environmental samples for a specific human goal.",
+      inputSchema: objectSchema({
+        profile: {
+          type: "string",
+          enum: ["focus", "sleep", "reading", "video_call", "recording"],
+          description: "The goal whose environmental needs should drive scoring.",
+        },
+      }, ["profile"]),
+      annotations: { readOnlyHint: true, untrustedContentHint: true },
+      execute: ({ profile }) => compareEnvironmentSamples(
+        sensoriumStore.getSnapshot().samples,
+        String(profile) as GoalProfile,
+      ),
     },
     {
       name: "request_observation",

@@ -1,8 +1,18 @@
 import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
-import { compareEnvironmentSamples } from "../shared/environment.js";
-import { addBridgeEvent, getBridge } from "./bridge-store.js";
-import { bridgeCodeSchema } from "./schemas.js";
+import { compareEnvironmentSamples, goalProfiles } from "../shared/environment.js";
+import {
+  addBridgeEvent,
+  compareBridgeSamples,
+  compareExpeditionStations,
+  createExpedition,
+  getBridge,
+  getExpedition,
+  listExpeditionStations,
+  requestExpeditionObservation,
+  waitForExpeditionUpdate,
+} from "./bridge-store.js";
+import { bridgeCodeSchema, expeditionCodeSchema, goalProfileSchema } from "./schemas.js";
 
 const result = (value: unknown) => ({
   content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }],
@@ -17,10 +27,18 @@ const missingBridge = (bridgeCode: string) => ({
   isError: true,
 });
 
+const missingExpedition = (expeditionCode: string) => ({
+  content: [{
+    type: "text" as const,
+    text: `No active Sensorium expedition was found for ${expeditionCode}. Create a new expedition or confirm the six-hour code.`,
+  }],
+  isError: true,
+});
+
 function buildSensoriumServer() {
   const server = new McpServer(
-    { name: "sensorium", version: "0.2.0" },
-    { instructions: "Sensorium lets an agent inspect structured environmental evidence that a person intentionally bridges from their browser. Never imply access to raw camera or microphone media; only derived measurements are available." },
+    { name: "sensorium", version: "0.3.0" },
+    { instructions: "Sensorium coordinates human-authorized environmental fieldwork. Browser stations control sensors and physical action; MCP agents may design missions, compare structured evidence, and return visible findings. Never imply access to raw camera or microphone media." },
   );
 
   server.registerTool(
@@ -34,8 +52,10 @@ function buildSensoriumServer() {
       service: "Sensorium remote MCP",
       mode: "temporary human-authorized evidence bridge",
       bridgeLifetimeMinutes: 60,
+      expeditionLifetimeHours: 6,
       rawMediaAvailable: false,
-      next: "Ask the person for the bridge code shown in Sensorium, then call read_environment.",
+      collaborationModes: ["single human-authorized bridge", "multi-station expedition"],
+      next: "Read a bridge code, or create an expedition and invite browser stations to join it.",
     }),
   );
 
@@ -50,7 +70,13 @@ function buildSensoriumServer() {
     async ({ bridgeCode }) => {
       const bridge = await getBridge(bridgeCode);
       return bridge ? result({
-        bridge: { code: bridge.code, updatedAt: bridge.updatedAt, expiresAt: bridge.expiresAt },
+        bridge: {
+          code: bridge.code,
+          stationLabel: bridge.stationLabel,
+          expeditionCode: bridge.expeditionCode,
+          updatedAt: bridge.updatedAt,
+          expiresAt: bridge.expiresAt,
+        },
         investigation: bridge.snapshot.investigation,
         requestedObservation: bridge.snapshot.requestedObservation,
         intervention: bridge.snapshot.intervention,
@@ -72,6 +98,113 @@ function buildSensoriumServer() {
     async ({ bridgeCode }) => {
       const bridge = await getBridge(bridgeCode);
       return bridge ? result(compareEnvironmentSamples(bridge.snapshot.samples)) : missingBridge(bridgeCode);
+    },
+  );
+
+  server.registerTool(
+    "list_goal_profiles",
+    {
+      title: "List environmental goals",
+      description: "List the goal-specific scoring profiles Sensorium can apply to the same physical evidence.",
+      annotations: { readOnlyHint: true },
+    },
+    async () => result({ profiles: goalProfiles }),
+  );
+
+  server.registerTool(
+    "score_environment_for_goal",
+    {
+      title: "Score environment for a goal",
+      description: "Re-score every sample in one bridge for focus, sleep, reading, video calls, or recording.",
+      inputSchema: z.object({ bridgeCode: bridgeCodeSchema, profile: goalProfileSchema }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ bridgeCode, profile }) => {
+      const comparison = await compareBridgeSamples(bridgeCode, profile);
+      return comparison ? result(comparison) : missingBridge(bridgeCode);
+    },
+  );
+
+  server.registerTool(
+    "create_expedition",
+    {
+      title: "Create field expedition",
+      description: "Create a six-hour multi-station investigation that browser participants can join with an expedition code.",
+      inputSchema: z.object({
+        title: z.string().trim().min(1).max(120),
+        question: z.string().trim().min(1).max(500),
+        profile: goalProfileSchema,
+      }),
+      annotations: { idempotentHint: false, openWorldHint: false },
+    },
+    async ({ title, question, profile }) => result({
+      expedition: await createExpedition(title, question, profile),
+      instructions: "Share the expedition code with participants. Each person enters it under Join an expedition before opening their Sensorium bridge.",
+    }),
+  );
+
+  server.registerTool(
+    "list_field_stations",
+    {
+      title: "List field stations",
+      description: "List the live browser stations participating in a Sensorium expedition and their latest sample metadata.",
+      inputSchema: z.object({ expeditionCode: expeditionCodeSchema }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ expeditionCode }) => {
+      const expedition = await getExpedition(expeditionCode);
+      if (!expedition) return missingExpedition(expeditionCode);
+      return result({ expedition, stations: await listExpeditionStations(expeditionCode) });
+    },
+  );
+
+  server.registerTool(
+    "request_station_observation",
+    {
+      title: "Request field observation",
+      description: "Send one clear physical measurement mission to every live station, or to one station. The request becomes visible in each browser and still requires human action.",
+      inputSchema: z.object({
+        expeditionCode: expeditionCodeSchema,
+        stationCode: bridgeCodeSchema.optional().describe("Omit to send the same standardized mission to every station."),
+        prompt: z.string().trim().min(1).max(500).describe("One concise, safe physical observation request."),
+      }),
+      annotations: { openWorldHint: false },
+    },
+    async ({ expeditionCode, stationCode, prompt }) => {
+      const delivery = await requestExpeditionObservation(expeditionCode, prompt, stationCode);
+      return delivery ? result({ ...delivery, prompt, humanActionRequired: true }) : missingExpedition(expeditionCode);
+    },
+  );
+
+  server.registerTool(
+    "compare_stations",
+    {
+      title: "Compare field stations",
+      description: "Rank the latest reading from every live station using the expedition goal or an explicitly selected profile.",
+      inputSchema: z.object({ expeditionCode: expeditionCodeSchema, profile: goalProfileSchema.optional() }),
+      annotations: { readOnlyHint: true },
+    },
+    async ({ expeditionCode, profile }) => {
+      const comparison = await compareExpeditionStations(expeditionCode, profile);
+      return comparison ? result(comparison) : missingExpedition(expeditionCode);
+    },
+  );
+
+  server.registerTool(
+    "await_expedition_update",
+    {
+      title: "Wait for field update",
+      description: "Wait for the next station join, sample, mission, or finding in an expedition. Pass the returned cursor to wait for a newer update.",
+      inputSchema: z.object({
+        expeditionCode: expeditionCodeSchema,
+        afterEventId: z.string().max(32).optional(),
+        timeoutSeconds: z.number().int().min(1).max(25).default(20),
+      }),
+      annotations: { readOnlyHint: true, idempotentHint: true },
+    },
+    async ({ expeditionCode, afterEventId, timeoutSeconds }) => {
+      const update = await waitForExpeditionUpdate(expeditionCode, afterEventId, timeoutSeconds * 1000);
+      return update ? result(update) : missingExpedition(expeditionCode);
     },
   );
 

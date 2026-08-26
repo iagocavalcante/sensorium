@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hostHeaderValidation, originValidation, toNodeHandler } from "@modelcontextprotocol/node";
 import { createBridge, deleteBridge, getBridgeEvents, updateBridge } from "./bridge-store.js";
-import { environmentSnapshotSchema } from "./schemas.js";
+import { bridgeOptionsSchema, environmentSnapshotSchema } from "./schemas.js";
 import { mcpHandler } from "./mcp.js";
 
 const port = Number(process.env.PORT ?? 8080);
@@ -62,12 +62,26 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL) {
   const parts = url.pathname.split("/").filter(Boolean);
 
   if (req.method === "POST" && url.pathname === "/api/bridges") {
-    const parsed = environmentSnapshotSchema.safeParse(await readJson(req));
+    const body = await readJson(req) as Record<string, unknown>;
+    const parsed = environmentSnapshotSchema.safeParse(body.snapshot ?? body);
     if (!parsed.success) return json(res, 400, { error: "Invalid environment snapshot.", issues: parsed.error.issues });
-    const bridge = await createBridge(parsed.data);
+    const options = bridgeOptionsSchema.safeParse({
+      stationLabel: body.stationLabel,
+      expeditionCode: body.expeditionCode || undefined,
+    });
+    if (!options.success) return json(res, 400, { error: "Invalid station or expedition details.", issues: options.error.issues });
+    let bridge;
+    try {
+      bridge = await createBridge(parsed.data, options.data);
+    } catch (error) {
+      return json(res, 404, { error: error instanceof Error ? error.message : "Expedition unavailable." });
+    }
     return json(res, 201, {
       code: bridge.code,
       writeToken: bridge.writeToken,
+      stationLabel: bridge.stationLabel,
+      expeditionCode: bridge.expeditionCode,
+      expedition: bridge.expedition,
       expiresAt: bridge.expiresAt,
       mcpUrl: `${url.protocol}//${url.host}/mcp`,
     });

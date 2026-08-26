@@ -118,6 +118,20 @@ h1 em { color: var(--signal); font-weight: 400; }
 .bridge-code span { text-transform: uppercase; letter-spacing: .13em; font-size: .52rem; opacity: .62; }
 .bridge-code strong { font-family: var(--serif); font-size: 1.12rem; font-weight: 500; letter-spacing: .035em; overflow-wrap: anywhere; }
 .bridge-open code { display: block; color: color-mix(in oklch, var(--paper) 70%, var(--forest)); font-family: inherit; font-size: .6rem; overflow-wrap: anywhere; }
+.bridge-identity { margin: .9rem 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: .4rem; text-transform: uppercase; letter-spacing: .1em; font-size: .5rem; color: var(--forest-light); }
+.expedition-code { margin: 0 0 .65rem; display: flex; align-items: baseline; justify-content: space-between; gap: .8rem; font-size: .56rem; }
+.expedition-code span { text-transform: uppercase; letter-spacing: .12em; opacity: .62; }
+.expedition-code strong { font-family: var(--serif); font-size: .9rem; font-weight: 500; overflow-wrap: anywhere; }
+.bridge-mission { margin: 1rem 0 0; padding: .75rem 0; border-top: 1px solid color-mix(in oklch, var(--forest-light) 35%, transparent); border-bottom: 1px solid color-mix(in oklch, var(--forest-light) 35%, transparent); color: var(--paper); font-family: var(--serif); font-size: .9rem; line-height: 1.25; }
+.bridge-mission span { display: block; margin-bottom: .35rem; color: var(--forest-light); font-family: "Avenir Next", Avenir, "Century Gothic", sans-serif; text-transform: uppercase; letter-spacing: .13em; font-size: .48rem; }
+.bridge-field { display: grid; gap: .35rem; margin: .8rem 0; }
+.bridge-field > span { text-transform: uppercase; letter-spacing: .12em; font-size: .5rem; opacity: .68; }
+.bridge-field input { width: 100%; border: 0; border-bottom: 1px solid color-mix(in oklch, var(--paper) 38%, transparent); border-radius: 0; padding: .5rem 0; background: transparent; color: var(--paper); font-family: var(--serif); font-size: .9rem; outline: none; }
+.bridge-field input::placeholder { color: color-mix(in oklch, var(--paper) 42%, transparent); }
+.bridge-field input:focus { border-color: var(--forest-light); }
+.expedition-join { margin: .8rem 0 1rem; }
+.expedition-join summary { width: max-content; cursor: pointer; border-bottom: 1px solid currentColor; color: color-mix(in oklch, var(--paper) 76%, var(--forest)); font-size: .62rem; }
+.expedition-join small { display: block; margin-top: -.25rem; opacity: .55; font-size: .54rem; }
 .bridge-actions { margin-top: 1rem; display: flex; justify-content: space-between; gap: 1rem; }
 .bridge-error { margin: .8rem 0 0; color: oklch(88% .1 60); font-size: .66rem; line-height: 1.4; }
 

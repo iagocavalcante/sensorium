@@ -41,6 +41,35 @@
         { "functionName": "propose_intervention" }
       ],
       "expectedOutcome": "The intervention and its rationale appear in the browser activity ledger."
+    },
+    {
+      "name": "coordinate a distributed field expedition",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Create a focus expedition called Field Desk Atlas so people in different locations can contribute comparable readings."
+        }
+      ],
+      "expectedCall": [
+        { "functionName": "create_expedition", "arguments": { "title": "Field Desk Atlas", "profile": "focus" } }
+      ],
+      "mustMention": ["expedition code", "six hours", "join"]
+    },
+    {
+      "name": "broadcast one protocol and react to live evidence",
+      "messages": [
+        {
+          "role": "user",
+          "content": "List the field stations, ask everyone for the same quiet baseline, wait for the next update, then compare the stations."
+        }
+      ],
+      "expectedCall": [
+        { "functionName": "list_field_stations" },
+        { "functionName": "request_station_observation" },
+        { "functionName": "await_expedition_update" },
+        { "functionName": "compare_stations" }
+      ],
+      "expectedOutcome": "Every joined browser shows the same human-action mission and the coordinator ranks current station readings."
     }
   ]
 }

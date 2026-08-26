@@ -74,6 +74,9 @@ export default function App() {
   const [bridgeBusy, setBridgeBusy] = useState(false);
   const [bridgeError, setBridgeError] = useState("");
   const [bridgeCopied, setBridgeCopied] = useState(false);
+  const [stationLabel, setStationLabel] = useState("Field station 01");
+  const [expeditionCode, setExpeditionCode] = useState("");
+  const [lastRemoteMission, setLastRemoteMission] = useState("");
   const appliedBridgeEvents = useRef(new Set<string>());
   const comparison = useMemo(() => compareSamples(state.samples), [state.samples]);
 
@@ -104,7 +107,10 @@ export default function App() {
           if (appliedBridgeEvents.current.has(event.id)) continue;
           appliedBridgeEvents.current.add(event.id);
           cursor = event.at;
-          if (event.type === "intervention") {
+          if (event.type === "observation_request") {
+            setLastRemoteMission(event.text);
+            sensoriumStore.requestObservation(event.text);
+          } else if (event.type === "intervention") {
             if (event.rationale) sensoriumStore.annotate(`Remote rationale: ${event.rationale}`);
             sensoriumStore.proposeIntervention(event.text);
           } else {
@@ -154,9 +160,13 @@ export default function App() {
   async function openBridge() {
     setBridgeBusy(true);
     setBridgeError("");
+    setLastRemoteMission("");
     try {
       appliedBridgeEvents.current.clear();
-      setBridge(await createAgentBridge(state));
+      setBridge(await createAgentBridge(state, {
+        stationLabel: stationLabel.trim() || "Field station 01",
+        expeditionCode: expeditionCode.trim() || undefined,
+      }));
     } catch (error) {
       setBridgeError(error instanceof Error ? error.message : "The agent bridge could not be opened.");
     } finally {
@@ -180,6 +190,7 @@ export default function App() {
     const current = bridge;
     setBridge(null);
     setBridgeError("");
+    setLastRemoteMission("");
     await closeAgentBridge(current).catch(() => undefined);
   }
 
@@ -191,7 +202,7 @@ export default function App() {
           Sensorium
         </a>
         <div className="station-meta">
-          <span>Field station 01</span>
+          <span>{bridge?.stationLabel ?? (stationLabel.trim() || "Field station 01")}</span>
           <span className={webMcpReady ? "status-live" : "status-preview"}>
             {webMcpReady ? "WebMCP live" : "Browser preview"}
           </span>
@@ -240,7 +251,7 @@ export default function App() {
         <aside className="agent-panel">
           <div className="section-heading inverse">
             <div><span className="section-number">02</span><p>Agent channel</p></div>
-            <span className="phase-label">9 web · 5 remote</span>
+            <span className="phase-label">11 web · 12 remote</span>
           </div>
           <p className="agent-statement">The agent cannot move through your room. You cannot compare every signal at once. Together, you can.</p>
           <div className="tool-strip" aria-label="Agent tools">
@@ -259,8 +270,14 @@ export default function App() {
             {bridge ? (
               <div className="bridge-open">
                 <p>Structured evidence is available to an MCP client. Raw media never leaves this page.</p>
-                <div className="bridge-code"><span>Bridge code</span><strong>{bridge.code}</strong></div>
+                <div className="bridge-identity">
+                  <span>{bridge.stationLabel}</span>
+                  {bridge.expedition && <span>{bridge.expedition.title} · {bridge.expedition.profile.replace("_", " ")}</span>}
+                </div>
+                <div className="bridge-code"><span>{bridge.expeditionCode ? "Station bridge code" : "Bridge code"}</span><strong>{bridge.code}</strong></div>
+                {bridge.expeditionCode && <div className="expedition-code"><span>Expedition</span><strong>{bridge.expeditionCode}</strong></div>}
                 <code>{bridge.mcpUrl}</code>
+                {lastRemoteMission && <p className="bridge-mission"><span>Incoming mission</span>{lastRemoteMission}</p>}
                 <div className="bridge-actions">
                   <button onClick={copyBridge}>{bridgeCopied ? "Copied connection brief" : "Copy connection brief"}</button>
                   <button onClick={closeBridge}>Close</button>
@@ -269,6 +286,23 @@ export default function App() {
             ) : (
               <div className="bridge-closed">
                 <p>Open a temporary path for Codex, Claude, or another MCP client to read this evidence and send findings back.</p>
+                <label className="bridge-field">
+                  <span>Station name</span>
+                  <input value={stationLabel} onChange={(event) => setStationLabel(event.target.value)} maxLength={80} />
+                </label>
+                <details className="expedition-join">
+                  <summary>Join a multi-station expedition</summary>
+                  <label className="bridge-field">
+                    <span>Expedition code</span>
+                    <input
+                      value={expeditionCode}
+                      onChange={(event) => setExpeditionCode(event.target.value.trim())}
+                      placeholder="Code from the field director"
+                      maxLength={24}
+                    />
+                  </label>
+                  <small>Leave blank for an independent bridge.</small>
+                </details>
                 <button onClick={openBridge} disabled={bridgeBusy}>{bridgeBusy ? "Opening bridge…" : "Open agent bridge ↗"}</button>
               </div>
             )}
@@ -308,7 +342,7 @@ export default function App() {
       </section>
 
       <footer>
-        <span>Sensorium / field build 0.2</span>
+        <span>Sensorium / field build 0.3</span>
         <p>The mind is distributed. The evidence is shared.</p>
         <span>Local-first · WebMCP + MCP</span>
       </footer>

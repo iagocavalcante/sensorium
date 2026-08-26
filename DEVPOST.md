@@ -18,33 +18,35 @@ Sensorium starts from a simple idea: the agent has the mind, the human has the b
 
 ## What it does
 
-Sensorium is a human-agent field laboratory that helps someone investigate a physical environment. A person can ask, “Where in this room can I do my best focused work?” Their browser agent can then create an investigation, request specific human observations, collect structured readings, compare environments, propose a reversible intervention, and verify whether it helped.
+Sensorium is a distributed human-agent field laboratory. One person can ask, “Where can our team do its best focused work?” An agent creates a temporary expedition; people in a home office, library, classroom, or studio join as field stations from their browsers. The agent gives every station the same observation mission, waits for live readings, and compares them with a goal-specific scoring profile.
 
 The browser measures microphone level and camera-derived brightness only after the person explicitly starts a physical capture. A deterministic simulation mode makes the complete experience easy to evaluate without granting sensor permission. Every human action, sensor result, and agent interpretation appears in one shared evidence ledger.
 
-Sensorium also demonstrates how browser-native WebMCP and conventional remote MCP can complement each other. The person can open a one-hour evidence bridge and give its private code to Codex, Claude, or another MCP client. That client can read and compare structured evidence through a Streamable HTTP MCP endpoint, then send an annotation or reversible intervention back into the live browser ledger. Raw audio and video never cross the bridge.
+Sensorium demonstrates how browser-native WebMCP and conventional remote MCP complement each other. WebMCP gives each local agent a structured interface to the live page and its human-controlled sensors. A remote MCP coordinator creates six-hour expeditions, observes temporary station presence, broadcasts standardized physical missions, waits for live updates, and compares readings across locations. Each one-hour station bridge is opt-in and protected by a high-entropy code. Raw audio and video never cross the bridge.
 
 ## Why WebMCP is essential
 
 This experience depends on the person and browser agent sharing the same live page, permissions, investigation state, and visible evidence. Remote MCP extends the investigation, but it cannot replace WebMCP: only the page can coordinate the person’s physical movement, direct permission gestures, browser sensors, and immediately inspectable UI.
 
-WebMCP turns Sensorium’s existing application operations into nine structured tools:
+WebMCP turns Sensorium’s existing application operations into eleven structured tools:
 
 1. `inspect_capabilities`
 2. `create_investigation`
-3. `request_observation`
-4. `capture_sample`
-5. `compare_samples`
-6. `annotate_evidence`
-7. `propose_intervention`
-8. `record_outcome`
-9. `export_evidence_capsule`
+3. `list_goal_profiles`
+4. `score_samples_for_goal`
+5. `request_observation`
+6. `capture_sample`
+7. `compare_samples`
+8. `annotate_evidence`
+9. `propose_intervention`
+10. `record_outcome`
+11. `export_evidence_capsule`
 
 The tools use narrow JSON Schemas, distinguish read-only operations, mark user-controlled evidence as untrusted content, return concise verifiable results, and update the same interface the person is watching.
 
 ## How people and agents collaborate
 
-The agent contributes experimental design, consistency, comparison, and interpretation. The person contributes physical movement, consent, context, and judgment. Neither side can complete the investigation as effectively alone.
+Agents contribute experimental design, consistent protocols, coordination, live comparison, and interpretation. People contribute physical presence in places the agent cannot reach, sensor consent, context, and judgment. A single agent can now coordinate several humans as a temporary scientific instrument; neither side can complete the distributed investigation alone.
 
 For consequential browser capabilities, the agent does not silently activate a sensor. It places a clear mission on the page and returns `needs_user_action`; the person remains responsible for granting permission and starting the reading. This makes human control a visible product feature rather than hidden friction.
 
@@ -54,7 +56,7 @@ Sensorium is a React 19 and TypeScript 7 progressive web app built with Vite. We
 
 Physical readings combine `MediaDevices.getUserMedia`, Web Audio time-domain analysis, video frames, and Canvas luminance sampling. The app also provides deterministic synthetic readings, an environmental scoring model, intervention comparison, JSON evidence export, responsive layouts, reduced-motion support, and an offline service-worker shell.
 
-The production site runs as a Node.js service on Fly.io in São Paulo. The same origin serves the React app, an expiring evidence-bridge API, and a standards-compliant MCP Streamable HTTP endpoint built with the MCP TypeScript SDK v2. It explicitly sends `Origin-Agent-Cluster: ?1` and a `Permissions-Policy` allowing WebMCP tools and the required first-party sensors. Initial multi-step agent journey evals live in `evals/webmcp-journeys.json`.
+The production site runs as a Node.js service on Fly.io in São Paulo. The same origin serves the React app, an expiring evidence/expedition API, and a standards-compliant MCP Streamable HTTP endpoint built with the MCP TypeScript SDK v2. An in-process event stream powers long-polling expedition updates, while short-lived random codes replace permanent accounts. The service explicitly sends `Origin-Agent-Cluster: ?1` and a `Permissions-Policy` allowing WebMCP tools and the required first-party sensors. Multi-step journey evals live in `evals/`.
 
 ## Challenges we ran into
 
@@ -62,12 +64,16 @@ The hardest design problem was preserving the permission boundary. Camera and mi
 
 We also had to make heterogeneous signals understandable. Sound, brightness, and steadiness have different units and useful ranges, so Sensorium converts them into a transparent habitat score while keeping the raw readings visible.
 
+Distributed measurement added a second challenge: comparisons are only credible when every station follows the same protocol. Agent-broadcast missions make the procedure visible in every browser, while live update cursors let the coordinator react to new evidence without losing human control.
+
 ## Accomplishments we are proud of
 
 - WebMCP is the core collaboration layer rather than a wrapper around a generic form.
 - The app connects agent reasoning to real browser sensors while preserving human permission.
 - Every agent side effect is visible in the shared evidence board.
 - Browser agents and remote MCP clients can collaborate through the same investigation without exposing raw media.
+- One remote agent can coordinate multiple human-operated field stations in real time without accounts or permanent tracking.
+- The same reading can be evaluated differently for focus, sleep, reading, video calls, or audio recording.
 - The full journey works with deterministic data for reliable judging and with physical capture for a real-world demo.
 - The interface has a distinctive field-notebook and scientific-instrument identity.
 
@@ -77,7 +83,7 @@ WebMCP is most compelling when human and agent abilities are asymmetric. The goa
 
 ## What is next
 
-Next, Sensorium can support optional Web Bluetooth and Web Serial instruments for CO₂, temperature, air quality, and light sensors. Other investigation templates could cover sleep environments, classroom comfort, accessibility field audits, urban heat, and citizen science. Evidence capsules could also be cryptographically signed and shared between nearby field stations without introducing a permanent data account.
+Next, Sensorium can support optional Web Bluetooth and Web Serial instruments for CO₂, temperature, air quality, and light sensors. Expedition templates could cover classroom comfort, accessibility field audits, urban heat islands, neighborhood noise, and disaster-response reconnaissance. Evidence capsules could also be cryptographically signed without introducing a permanent data account.
 
 ## Suggested judge prompts
 
@@ -85,7 +91,8 @@ Next, Sensorium can support optional Web Bluetooth and Web Serial instruments fo
 2. “Use simulated readings for the desk and window, then compare them.”
 3. “Propose one reversible intervention, record a simulated outcome, and explain whether it helped.”
 4. “Prepare the current evidence capsule for export.”
-5. Open the Remote MCP bridge, connect an MCP client, and ask it to compare the places and send one intervention back to the browser.
+5. “Create a focus expedition called Field Desk Atlas and give me the join code.”
+6. Join from two browsers, then ask: “List the stations, send everyone the same quiet-baseline mission, wait for the next reading, and compare the stations.”
 
 ## Built with
 

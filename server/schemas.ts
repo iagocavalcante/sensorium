@@ -31,3 +31,10 @@ export const environmentSnapshotSchema = z.object({
 });
 
 export const bridgeCodeSchema = z.string().trim().min(12).max(32);
+export const expeditionCodeSchema = z.string().trim().min(10).max(24);
+export const goalProfileSchema = z.enum(["focus", "sleep", "reading", "video_call", "recording"]);
+
+export const bridgeOptionsSchema = z.object({
+  stationLabel: z.string().trim().min(1).max(80).optional(),
+  expeditionCode: expeditionCodeSchema.optional(),
+});

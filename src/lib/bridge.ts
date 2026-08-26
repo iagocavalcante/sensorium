@@ -3,6 +3,15 @@ import type { EnvironmentSnapshot } from "../../shared/environment";
 export type AgentBridge = {
   code: string;
   writeToken: string;
+  stationLabel: string;
+  expeditionCode?: string;
+  expedition?: {
+    code: string;
+    title: string;
+    question: string;
+    profile: string;
+    expiresAt: string;
+  };
   expiresAt: string;
   mcpUrl: string;
 };
@@ -10,7 +19,7 @@ export type AgentBridge = {
 export type AgentBridgeEvent = {
   id: string;
   at: string;
-  type: "annotation" | "intervention";
+  type: "annotation" | "intervention" | "observation_request";
   text: string;
   rationale?: string;
 };
@@ -25,8 +34,14 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export function createAgentBridge(snapshot: EnvironmentSnapshot) {
-  return api<AgentBridge>("/api/bridges", { method: "POST", body: JSON.stringify(snapshot) });
+export function createAgentBridge(
+  snapshot: EnvironmentSnapshot,
+  options: { stationLabel: string; expeditionCode?: string },
+) {
+  return api<AgentBridge>("/api/bridges", {
+    method: "POST",
+    body: JSON.stringify({ snapshot, ...options }),
+  });
 }
 
 export function syncAgentBridge(bridge: AgentBridge, snapshot: EnvironmentSnapshot) {
@@ -57,6 +72,7 @@ export function bridgeConnectionBrief(bridge: AgentBridge) {
     bridge.mcpUrl,
     "",
     `Bridge code: ${bridge.code}`,
+    ...(bridge.expeditionCode ? [`Expedition code: ${bridge.expeditionCode}`, `Station: ${bridge.stationLabel}`] : []),
     "First call inspect_sensorium, then read_environment with this bridge code.",
   ].join("\n");
 }
