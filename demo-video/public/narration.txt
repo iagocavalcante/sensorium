@@ -1,0 +1,17 @@
+AI agents can reason about the world, but they cannot stand in your room. Sensorium gives them a human-authorized way to sense.
+
+This is a browser field laboratory built around a simple division of abilities. The person supplies physical presence, context, and permission. The agent supplies experimental design, coordination, comparison, and interpretation. WebMCP is the structured nervous system between them.
+
+Here, an agent creates Field Desk Atlas, a temporary focus expedition. People in different places join from ordinary browser tabs as independent field stations. The agent can see who is present, then send every station the same physical mission. The instruction appears in the page the person is already watching. It never silently starts a sensor.
+
+When the person presses the orange button, Sensorium runs an eight-second protocol. Camera luminance and relative microphone level are sampled together about thirty-two times. The phone stays awake, medians reduce one-frame noise, and device motion is checked when available. Raw audio and video are never retained or uploaded.
+
+Suitability and trust are separate. This Quartinho reading scores sixty-seven for focused work, with eighty-six percent evidence confidence. Sensorium explains signal variation and whether motion was verified. If evidence is weak, an agent can request a controlled repeat, but the human still performs the capture.
+
+For this reproducible judge demo, a deterministic São Paulo station joins the physical Belém station. The coordinator compares the latest evidence using the same focus profile. The simulated library scores ninety-three with ninety-six percent confidence; the physical Quartinho reading scores sixty-seven with eighty-six percent confidence. Simulation is always labeled and never presented as physical evidence.
+
+Every mission, reading, intervention, and finding returns to one visible ledger. Browser-derived sound and light are explicitly relative, not calibrated decibels or lux. Bridges expire after one hour, expeditions after six, and raw media stays on-device.
+
+Sensorium exposes thirteen tools through WebMCP inside the browser and fourteen through remote MCP. Together they let people and agents create protocols, coordinate stations, validate evidence, request recapture, test interventions, and verify outcomes.
+
+The agent has the mind. People have the bodies. Sensorium turns them into a distributed instrument for the open web.

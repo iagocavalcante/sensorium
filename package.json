@@ -10,6 +10,7 @@
     "start": "node server-dist/server/index.js",
     "test:mcp": "node --experimental-strip-types scripts/test-mcp.ts",
     "test:expedition": "node --experimental-strip-types scripts/test-expedition.ts",
+    "demo:seed": "node --experimental-strip-types scripts/demo-director.ts",
     "preview": "vite preview"
   },
   "dependencies": {

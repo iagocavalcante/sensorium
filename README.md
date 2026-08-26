@@ -8,6 +8,10 @@ Sensorium lets people and their agents investigate physical environments togethe
 
 https://sensorium-devsnorte.fly.dev/
 
+## Demo
+
+The narrated 2:26 challenge film is reproducible from [`demo-video/`](./demo-video/). Its production screenshots show a real, human-authorized Belém capture alongside a clearly labeled deterministic São Paulo station.
+
 ## What already works
 
 - Thirteen imperative WebMCP tools registered through `document.modelContext.registerTool`
@@ -98,6 +102,12 @@ Run the complete disposable two-station expedition test with:
 
 ```bash
 npm run test:expedition -- https://sensorium-devsnorte.fly.dev/mcp
+```
+
+Seed the repeatable judge scenario after creating a browser bridge and a focus expedition:
+
+```bash
+npm run demo:seed -- https://sensorium-devsnorte.fly.dev/mcp EXPEDITION_CODE BRIDGE_CODE
 ```
 
 ## Deploy to Fly.io

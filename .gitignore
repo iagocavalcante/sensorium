@@ -8,3 +8,5 @@ server-dist
 *.tsbuildinfo
 vite.config.js
 vite.config.d.ts
+demo-video/out/
+demo-video/public/narration.aiff
