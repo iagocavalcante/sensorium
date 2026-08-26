@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "journeys": [
+    {
+      "name": "design a focus investigation",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Help me find the best place in this room for focused work."
+        }
+      ],
+      "expectedCall": [
+        {
+          "functionName": "inspect_capabilities",
+          "arguments": {}
+        },
+        {
+          "functionName": "create_investigation"
+        },
+        {
+          "functionName": "request_observation"
+        }
+      ]
+    },
+    {
+      "name": "compare collected evidence",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Compare the readings and tell me which environment is strongest."
+        }
+      ],
+      "expectedCall": [
+        {
+          "functionName": "compare_samples",
+          "arguments": {}
+        },
+        {
+          "functionName": "annotate_evidence"
+        }
+      ]
+    },
+    {
+      "name": "test a reversible intervention",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Suggest one change and help me verify if it worked."
+        }
+      ],
+      "expectedCall": [
+        {
+          "functionName": "propose_intervention"
+        },
+        {
+          "functionName": "request_observation"
+        },
+        {
+          "functionName": "record_outcome"
+        },
+        {
+          "functionName": "compare_samples",
+          "arguments": {}
+        }
+      ]
+    }
+  ]
+}
