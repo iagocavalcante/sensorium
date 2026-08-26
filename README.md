@@ -4,6 +4,10 @@
 
 Sensorium lets a person and their browser agent investigate a physical environment together. The person supplies movement, perception, and permission. The agent supplies experimental structure, comparison, and interpretation. Both work in the same visible evidence board.
 
+## Live app
+
+https://sensorium-devsnorte.fly.dev/
+
 ## What already works
 
 - Nine imperative WebMCP tools registered through `document.modelContext.registerTool`
@@ -32,6 +36,14 @@ Enable WebMCP in Chrome at `chrome://flags/#enable-webmcp-testing`, relaunch Chr
 
 ```bash
 npm run build
+```
+
+## Deploy to Fly.io
+
+The included `Dockerfile`, `nginx.conf`, and `fly.toml` deploy the static production build with the isolation and permissions headers required by WebMCP.
+
+```bash
+flyctl deploy
 ```
 
 ## Privacy model
