@@ -8,7 +8,7 @@ Give your browser agent a way to sense the physical world—without taking the h
 
 - Live app: https://sensorium-devsnorte.fly.dev/
 - Source: https://github.com/iagocavalcante/sensorium
-- Demo video: _add public YouTube URL before submission_
+- Demo video: https://youtu.be/6oQng15Ee9U
 
 ## Inspiration
 

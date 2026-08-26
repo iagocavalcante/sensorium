@@ -10,7 +10,7 @@ https://sensorium-devsnorte.fly.dev/
 
 ## Demo
 
-The narrated 2:26 challenge film is reproducible from [`demo-video/`](./demo-video/). Its production screenshots show a real, human-authorized Belém capture alongside a clearly labeled deterministic São Paulo station.
+Watch the [2:26 narrated challenge demo](https://youtu.be/6oQng15Ee9U). The film is reproducible from [`demo-video/`](./demo-video/), and its production screenshots show a real, human-authorized Belém capture alongside a clearly labeled deterministic São Paulo station.
 
 ## What already works
 
